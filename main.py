@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-AEGOX CLAN BOT - Python version
+AEGOX CLAN BOT - Python 3.11+
 Main entry point
 """
 import asyncio
 import sys
 import os
+import signal
 
 # Agregar src al path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
@@ -14,8 +15,12 @@ import discord
 from discord.ext import commands
 from src.config import config
 from src.database import init_db
-from src.events.ready import setup_events, on_ready
+from src.events.core import setup_events
 from src.utils.logger import logger
+
+# Variables globales para comandos
+bot = None
+bot_start_time = 0
 
 def main():
     # Validar config
@@ -32,8 +37,10 @@ def main():
     intents.messages = True
     intents.message_content = True
     intents.invites = True
+    intents.presences = True
     
     # Bot
+    global bot
     bot = commands.Bot(
         command_prefix="!",
         intents=intents,
@@ -52,43 +59,45 @@ def main():
     # Event listeners
     @bot.event
     async def on_ready():
+        from src.events.core import on_ready
         await on_ready(bot)
     
     @bot.event
     async def on_member_join(member):
-        from src.events.ready import on_guild_member_add
+        from src.events.members import on_guild_member_add
         await on_guild_member_add(member)
     
     @bot.event
     async def on_member_remove(member):
-        from src.events.ready import on_guild_member_remove
+        from src.events.members import on_guild_member_remove
         await on_guild_member_remove(member)
     
     @bot.event
     async def on_interaction(interaction):
-        from src.events.ready import on_interaction
+        from src.events.interactions import on_interaction
         await on_interaction(interaction)
     
     @bot.event
     async def on_invite_create(invite):
-        from src.events.ready import on_invite_create
+        from src.events.invites import on_invite_create
         await on_invite_create(invite)
     
     @bot.event
     async def on_invite_delete(invite):
-        from src.events.ready import on_invite_delete
+        from src.events.invites import on_invite_delete
         await on_invite_delete(invite)
     
     @bot.event
     async def on_invite_update(invite):
-        from src.events.ready import on_invite_update
+        from src.events.invites import on_invite_update
         await on_invite_update(invite)
     
     # Cargar comandos slash
     async def load_commands():
         from src.commands import (
             ping, invites, suggestions, applications,
-            announcements, giveaways, admin
+            announcements, giveaways, admin, tickets,
+            verification, admin_web
         )
         
         # Sincronizar comandos
@@ -109,12 +118,14 @@ def main():
     
     async def startup():
         # Inicializar DB
+        from src.database import init_db
         await init_db()
         
         # Cargar comandos
         await load_commands()
         
         # Iniciar bot
+        from src.config import config
         await bot.start(config.TOKEN)
     
     try:

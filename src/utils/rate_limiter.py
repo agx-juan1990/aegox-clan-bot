@@ -4,11 +4,10 @@ from typing import Dict
 class RateLimiter:
     def __init__(self):
         self.cooldowns: Dict[str, Dict[str, float]] = {}
-        self.COMMAND_COOLDOWN = 5  # segundos
-        self.APP_COOLDOWN = 30  # segundos para postulaciones/sugerencias
+        self.COMMAND_COOLDOWN = 5
+        self.SUGGESTION_APPLICATION_COOLDOWN = 30
     
     def check_cooldown(self, user_id: str, command: str, cooldown: int = None) -> tuple[bool, int]:
-        """Retorna (allowed, remaining_seconds)"""
         if cooldown is None:
             cooldown = self.COMMAND_COOLDOWN
         
@@ -29,6 +28,5 @@ class RateLimiter:
 
 rate_limiter = RateLimiter()
 
-# Cooldowns específicos
 COMMAND_COOLDOWN = 5
 SUGGESTION_APPLICATION_COOLDOWN = 30

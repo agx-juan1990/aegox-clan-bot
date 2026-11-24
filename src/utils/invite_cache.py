@@ -22,7 +22,6 @@ def get_invites(guild_id: int) -> dict:
     return invite_cache.get(guild_id, {})
 
 async def fetch_and_cache_guild_invites(guild) -> dict:
-    """Obtiene todos los invites del servidor y actualiza el cache"""
     try:
         invites = await guild.invites()
         cache = {}
