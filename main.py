@@ -115,10 +115,31 @@ def main():
         except Exception as e:
             logger.error(f"Error sincronizando comandos: {e}")
     
+    async def load_cogs():
+        """Carga todos los cogs"""
+        from src.cogs import (
+            core, clan_applications, staff_applications, invites,
+            suggestions, giveaways, tickets, announcements,
+            admin, verification, anti_alt, events_auto, admin_web
+        )
+        for cog_module in [
+            core, clan_applications, staff_applications, invites,
+            suggestions, giveaways, tickets, announcements,
+            admin, verification, anti_alt, events_auto, admin_web
+        ]:
+            try:
+                await cog_module.setup(bot)
+                logger.info(f"Cog {cog_module.__name__} cargado")
+            except Exception as e:
+                logger.error(f"Error cargando cog {cog_module.__name__}: {e}")
+    
     async def startup():
         # Inicializar DB
         from src.database import init_db
         await init_db()
+        
+        # Cargar cogs
+        await load_cogs()
         
         # Cargar comandos
         await load_commands()
