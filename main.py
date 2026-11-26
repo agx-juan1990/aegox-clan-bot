@@ -15,7 +15,6 @@ import discord
 from discord.ext import commands
 from src.config import config
 from src.database import init_db
-from src.events.core import setup_events
 from src.utils.logger import logger
 
 # Variables globales para comandos
