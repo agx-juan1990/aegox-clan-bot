@@ -13,9 +13,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 import discord
 from discord.ext import commands
-from src.config import config
+from src.config import config, load_config
 from src.database import init_db
 from src.utils.logger import logger
+
+# Cargar configuración al inicio
+load_config()
 
 # Variables globales para comandos
 bot = None
