@@ -3,6 +3,7 @@ Comandos para Dashboard Web + Analytics
 """
 import discord
 from discord import app_commands
+from discord.ui import Modal, TextInput
 from src.config import config
 from src.database import get_db, get_setting
 from src.utils.logger import logger
@@ -48,7 +49,7 @@ async def dashboard(interaction: discord.Interaction, accion: str):
             url="https://dashboard.aegox.clan/metrics"
         ))
         
-        await interaction.response.send_message(embed=embed, view=View(), ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
     
     elif accion == "metrics":
         # Redirigir a endpoint de métricas
