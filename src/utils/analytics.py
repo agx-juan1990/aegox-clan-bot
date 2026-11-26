@@ -109,7 +109,6 @@ ANTI_ALT_DETECTIONS = Counter('aegox_anti_alt_detections_total', 'Anti-alt detec
 TICKETS_CREATED = Counter('aegox_tickets_created_total', 'Tickets created', ['guild_id', 'category'])
 TICKETS_CLOSED = Counter('aegox_tickets_closed_total', 'Tickets closed', ['guild_id', 'category'])
 VERIFICATIONS = Counter('aegox_verifications_total', 'Web verifications', ['guild_id', 'success'])
-ANTI_ALT_DETECTIONS = Counter('aegox_anti_alt_detections_total', 'Anti-alt detections', ['guild_id', 'risk_level'])
 
 # Helpers para tracking
 def track_command(command: str, guild_id: int, status: str = "success"):
@@ -121,8 +120,8 @@ def track_latency(command: str, latency: float):
 def track_db_query(operation: str, latency: float):
     DB_QUERY_LATENCY.labels(operation=operation).observe(latency)
 
-def track_anti_alt_detection(guild_id: int, risk_level: str):
-    ANTI_ALT_DETECTIONS.labels(guild_id=str(guild_id), risk_level=risk_level).inc()
+def track_anti_alt_detection(guild_id: int, detection_type: str, risk_level: str):
+    ANTI_ALT_DETECTIONS.labels(guild_id=str(guild_id), type=detection_type, risk_level=risk_level).inc()
 
 def track_ticket_created(guild_id: int, category: str):
     TICKETS_CREATED.labels(guild_id=str(guild_id), category=category).inc()
