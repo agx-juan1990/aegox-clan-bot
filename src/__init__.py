@@ -1,1 +1,0 @@
-# AEGOX CLAN BOT - Paquete principal

@@ -8,17 +8,21 @@ import sys
 import os
 import signal
 
-# Agregar src al path
+# Agregar src al path ANTES de cualquier import de src
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 import discord
 from discord.ext import commands
-from src.config import config, load_config
+
+# Importar módulo config (no la variable) para que load_config() actualice la variable global
+import src.config as config_module
+from src.config import load_config
 from src.database import init_db
 from src.utils.logger import logger
 
-# Cargar configuración al inicio
+# Cargar configuración al inicio - esto inicializa config_module.config
 load_config()
+config = config_module.config
 
 # Variables globales para comandos
 bot = None
