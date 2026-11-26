@@ -842,17 +842,455 @@ async def remove_giveaway_entry(giveaway_id: int, user_id: str, guild_id: int) -
         [giveaway_id, user_id, guild_id]
     )
 
+# ============================================================
+# GIVEAWAYS
+# ============================================================
+async def create_giveaway(guild_id: int, channel_id: str, message_id: str, premio: str, 
+                          descripcion: str, duracion: str, ends_at: int, winners_count: int, 
+                          created_by: str) -> int:
+    result = await db.execute(
+        """INSERT INTO giveaways (guild_id, channel_id, message_id, premio, descripcion, 
+           duracion, ends_at, winners_count, status, created_by, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activo', ?, ?)""",
+        [guild_id, channel_id, message_id, premio, descripcion, duracion, ends_at, winners_count, created_by, int(time.time() * 1000)]
+    )
+    return result["last_insert_rowid"]
+
+async def get_giveaway(giveaway_id: int) -> Optional[dict]:
+    return await db.fetchone("SELECT * FROM giveaways WHERE id = ?", [giveaway_id])
+
+async def get_all_entries(giveaway_id: int) -> List[dict]:
+    return await db.fetchall("SELECT * FROM giveaway_entries WHERE giveaway_id = ?", [giveaway_id])
+
+async def update_giveaway(giveaway_id: int, **kwargs) -> None:
+    if not kwargs:
+        return
+    set_clause = ", ".join([f"{k} = ?" for k in kwargs.keys()])
+    values = list(kwargs.values()) + [giveaway_id]
+    await db.execute(f"UPDATE giveaways SET {set_clause} WHERE id = ?", values)
+
+async def add_giveaway_entry(giveaway_id: int, user_id: str, guild_id: int) -> None:
+    await db.execute(
+        "INSERT OR IGNORE INTO giveaway_entries (giveaway_id, user_id, guild_id, entered_at) VALUES (?, ?, ?, ?)",
+        [giveaway_id, user_id, guild_id, int(time.time() * 1000)]
+    )
+
+async def has_user_entered(giveaway_id: int, user_id: str) -> bool:
+    result = await db.fetchone("SELECT 1 FROM giveaway_entries WHERE giveaway_id = ? AND user_id = ?", [giveaway_id, user_id])
+    return result is not None
+
+async def get_entry_count(giveaway_id: int) -> int:
+    result = await db.fetchone("SELECT COUNT(*) as count FROM giveaway_entries WHERE giveaway_id = ?", [giveaway_id])
+    return result["count"] if result else 0
+
+async def get_allowed_roles_for_giveaways(guild_id: int) -> List[int]:
+    result = await db.fetchall("SELECT role_id FROM giveaway_allowed_roles WHERE guild_id = ?", [guild_id])
+    return [r["role_id"] for r in result]
+
+async def set_allowed_roles_for_giveaways(guild_id: int, role_ids: List[int]) -> None:
+    await db.execute("DELETE FROM giveaway_allowed_roles WHERE guild_id = ?", [guild_id])
+    for role_id in role_ids:
+        await db.execute("INSERT INTO giveaway_allowed_roles (guild_id, role_id) VALUES (?, ?)", [guild_id, role_id])
+
+# ============================================================
+# POSTULACIONES
+# ============================================================
+async def get_apply_message_id(guild_id: int) -> Optional[str]:
+    result = await db.fetchone("SELECT value FROM settings WHERE guild_id = ? AND key = 'MEMBER_APPLY_MESSAGE_ID'", [guild_id])
+    return result["value"] if result else None
+
+async def set_apply_message_id(guild_id: int, message_id: str) -> None:
+    await db.execute(
+        "INSERT OR REPLACE INTO settings (guild_id, key, value) VALUES (?, 'MEMBER_APPLY_MESSAGE_ID', ?)",
+        [guild_id, message_id]
+    )
+
+async def get_staff_application_message_id(guild_id: int) -> Optional[str]:
+    result = await db.fetchone("SELECT value FROM settings WHERE guild_id = ? AND key = 'STAFF_APPLY_MESSAGE_ID'", [guild_id])
+    return result["value"] if result else None
+
+async def set_staff_application_message_id(guild_id: int, message_id: str) -> None:
+    await db.execute(
+        "INSERT OR REPLACE INTO settings (guild_id, key, value) VALUES (?, 'STAFF_APPLY_MESSAGE_ID', ?)",
+        [guild_id, message_id]
+    )
+
+async def get_pending_staff_application(user_id: str, guild_id: int) -> Optional[dict]:
+    return await db.fetchone(
+        "SELECT * FROM staff_applications WHERE user_id = ? AND guild_id = ? AND status = 'pendiente'",
+        [user_id, guild_id]
+    )
+
+async def create_staff_application(user_id: str, guild_id: int, mc_nick: str, 
+                                    edad: int, pais: str, tiempo_staff: str, puesto_elegido: str,
+                                    experiencia: str, disponibilidad: str) -> int:
+    result = await db.execute(
+        """INSERT INTO staff_applications (user_id, guild_id, mc_nick, edad, pais, tiempo_staff, puesto_elegido, 
+           experiencia, disponibilidad, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?)""",
+        [user_id, guild_id, mc_nick, edad, pais, tiempo_staff, puesto_elegido, experiencia, disponibilidad, int(time.time() * 1000)]
+    )
+    return result["last_insert_rowid"]
+
+async def get_staff_application(app_id: int) -> Optional[dict]:
+    return await db.fetchone("SELECT * FROM staff_applications WHERE id = ?", [app_id])
+
+async def update_staff_application(app_id: int, **kwargs) -> None:
+    if not kwargs:
+        return
+    set_clause = ", ".join([f"{k} = ?" for k in kwargs.keys()])
+    values = list(kwargs.values()) + [app_id]
+    await db.execute(f"UPDATE staff_applications SET {set_clause} WHERE id = ?", values)
+
+async def is_blacklisted(user_id: str, guild_id: int) -> bool:
+    result = await db.fetchone("SELECT 1 FROM blacklist WHERE user_id = ? AND guild_id = ?", [user_id, guild_id])
+    return result is not None
+
+async def add_to_blacklist(user_id: str, guild_id: int, reason: str, added_by: str) -> None:
+    await db.execute(
+        "INSERT OR REPLACE INTO blacklist (user_id, guild_id, reason, added_by, created_at) VALUES (?, ?, ?, ?, ?)",
+        [user_id, guild_id, reason, added_by, int(time.time() * 1000)]
+    )
+
+async def remove_from_blacklist(user_id: str, guild_id: int) -> None:
+    await db.execute("DELETE FROM blacklist WHERE user_id = ? AND guild_id = ?", [user_id, guild_id])
+
+async def get_blacklist(guild_id: int) -> List[dict]:
+    return await db.fetchall("SELECT * FROM blacklist WHERE guild_id = ? ORDER BY created_at DESC", [guild_id])
+
+async def get_rejection_info(user_id: str, guild_id: int) -> Optional[dict]:
+    return await db.fetchone(
+        "SELECT * FROM rejection_info WHERE user_id = ? AND guild_id = ?",
+        [user_id, guild_id]
+    )
+
+async def upsert_rejection_info(user_id: str, guild_id: int, rejected_at: int, reason: str) -> None:
+    await db.execute(
+        """INSERT INTO rejection_info (user_id, guild_id, rejected_at, reason, created_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(user_id, guild_id) DO UPDATE SET rejected_at = excluded.rejected_at, reason = excluded.reason""",
+        [user_id, guild_id, rejected_at, reason, int(time.time() * 1000)]
+    )
+
+async def calculate_next_allowed(user_id: str, guild_id: int) -> int:
+    info = await get_rejection_info(user_id, guild_id)
+    if not info:
+        return 0
+    # 7 días de espera después de rechazo
+    return info["rejected_at"] + 7 * 24 * 60 * 60 * 1000
+
+# ============================================================
+# ANUNCIOS
+# ============================================================
+async def create_announcement(guild_id: int, channel_id: int, title: str, description: str,
+                               type: str, color: int, author: str, image: str = None,
+                               footer: str = None, ping_role_id: int = None,
+                               scheduled_at: int = None, status: str = "programado") -> int:
+    result = await db.execute(
+        """INSERT INTO announcements (guild_id, channel_id, title, description, type, color, author, 
+           image, footer, ping_role_id, scheduled_at, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        [guild_id, channel_id, title, description, type, color, author, image, footer, ping_role_id, scheduled_at, status, int(time.time() * 1000)]
+    )
+    return result["last_insert_rowid"]
+
+async def get_announcement(ann_id: int) -> Optional[dict]:
+    return await db.fetchone("SELECT * FROM announcements WHERE id = ?", [ann_id])
+
+async def update_announcement(ann_id: int, **kwargs) -> None:
+    if not kwargs:
+        return
+    set_clause = ", ".join([f"{k} = ?" for k in kwargs.keys()])
+    values = list(kwargs.values()) + [ann_id]
+    await db.execute(f"UPDATE announcements SET {set_clause} WHERE id = ?", values)
+
+async def delete_announcement(ann_id: int) -> None:
+    await db.execute("DELETE FROM announcements WHERE id = ?", [ann_id])
+
+async def get_announcements(guild_id: int, status: str = None) -> List[dict]:
+    sql = "SELECT * FROM announcements WHERE guild_id = ?"
+    args = [guild_id]
+    if status:
+        sql += " AND status = ?"
+        args.append(status)
+    sql += " ORDER BY created_at DESC"
+    return await db.fetchall(sql, args)
+
+async def get_scheduled_announcements(guild_id: int) -> List[dict]:
+    now = int(time.time() * 1000)
+    return await db.fetchall(
+        "SELECT * FROM announcements WHERE guild_id = ? AND status = 'programado' AND scheduled_at <= ?",
+        [guild_id, now]
+    )
+
+async def get_allowed_roles_for_announcements(guild_id: int) -> List[int]:
+    result = await db.fetchall("SELECT role_id FROM announcement_allowed_roles WHERE guild_id = ?", [guild_id])
+    return [r["role_id"] for r in result]
+
+async def set_allowed_roles_for_announcements(guild_id: int, role_ids: List[int]) -> None:
+    await db.execute("DELETE FROM announcement_allowed_roles WHERE guild_id = ?", [guild_id])
+    for role_id in role_ids:
+        await db.execute("INSERT INTO announcement_allowed_roles (guild_id, role_id) VALUES (?, ?)", [guild_id, role_id])
+
+# ============================================================
+# TICKETS
+# ============================================================
+async def create_ticket(guild_id: int, user_id: str, channel_id: str, type: str, status: str = "abierto") -> int:
+    result = await db.execute(
+        "INSERT INTO tickets (guild_id, user_id, channel_id, type, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        [guild_id, user_id, channel_id, type, status, int(time.time() * 1000)]
+    )
+    return result["last_insert_rowid"]
+
+async def get_ticket(ticket_id: int) -> Optional[dict]:
+    return await db.fetchone("SELECT * FROM tickets WHERE id = ?", [ticket_id])
+
+async def get_ticket_by_channel(channel_id: str) -> Optional[dict]:
+    return await db.fetchone("SELECT * FROM tickets WHERE channel_id = ?", [channel_id])
+
+async def update_ticket(ticket_id: int, **kwargs) -> None:
+    if not kwargs:
+        return
+    set_clause = ", ".join([f"{k} = ?" for k in kwargs.keys()])
+    values = list(kwargs.values()) + [ticket_id]
+    await db.execute(f"UPDATE tickets SET {set_clause} WHERE id = ?", values)
+
+async def get_user_tickets(user_id: str, guild_id: int) -> List[dict]:
+    return await db.fetchall("SELECT * FROM tickets WHERE user_id = ? AND guild_id = ? ORDER BY created_at DESC", [user_id, guild_id])
+
+async def get_open_tickets(guild_id: int) -> List[dict]:
+    return await db.fetchall("SELECT * FROM tickets WHERE guild_id = ? AND status = 'abierto' ORDER BY created_at", [guild_id])
+
+async def add_ticket_message(ticket_id: int, user_id: str, message_id: str, content: str) -> None:
+    await db.execute(
+        "INSERT INTO ticket_messages (ticket_id, user_id, message_id, content, created_at) VALUES (?, ?, ?, ?, ?)",
+        [ticket_id, user_id, message_id, content, int(time.time() * 1000)]
+    )
+
+async def get_ticket_messages(ticket_id: int) -> List[dict]:
+    return await db.fetchall("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at", [ticket_id])
+
+# ============================================================
+# STAFF TRIALS
+# ============================================================
+async def create_staff_trial(user_id: str, guild_id: int, role: str, ends_at: int, assigned_by: str) -> int:
+    result = await db.execute(
+        "INSERT INTO staff_trials (user_id, guild_id, role, ends_at, status, assigned_by, created_at) VALUES (?, ?, ?, ?, 'activo', ?, ?)",
+        [user_id, guild_id, role, ends_at, assigned_by, int(time.time() * 1000)]
+    )
+    return result["last_insert_rowid"]
+
+async def get_active_staff_trials(guild_id: int) -> List[dict]:
+    now = int(time.time() * 1000)
+    return await db.fetchall(
+        "SELECT * FROM staff_trials WHERE guild_id = ? AND status = 'activo' AND ends_at <= ?",
+        [guild_id, now]
+    )
+
+async def remove_staff_trial(user_id: str, guild_id: int) -> None:
+    await db.execute(
+        "UPDATE staff_trials SET status = 'completado' WHERE user_id = ? AND guild_id = ? AND status = 'activo'",
+        [user_id, guild_id]
+    )
+
+# ============================================================
+# CONFIG HELPERS
+# ============================================================
+async def get_config_value(key: str) -> Optional[str]:
+    return CONFIG_CACHE.get(key)
+
+def set_config_value(key: str, value: str) -> None:
+    CONFIG_CACHE[key] = value
+
+async def log_to_channel(bot, guild_id: int, type: str, embed) -> None:
+    channel_id = await get_setting(guild_id, "LOG_CHANNEL_ID")
+    if channel_id:
+        channel = bot.get_channel(int(channel_id))
+        if channel:
+            try:
+                await channel.send(embed=embed)
+            except:
+                pass
+
+# ============================================================
+# ANTI-ALT
+# ============================================================
+async def log_alt_detection(user_id: str, guild_id: int, ip: str, hwid: str, 
+                             fingerprint: str, detection_type: str, confidence: float,
+                             matched_user_id: str = None, evidence: dict = None) -> int:
+    result = await db.execute(
+        """INSERT INTO alt_detections (user_id, guild_id, ip, hwid, browser_fingerprint, 
+           detection_type, confidence, matched_user_id, evidence, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)""",
+        [user_id, guild_id, ip, hwid, fingerprint, detection_type, confidence, 
+         matched_user_id, json.dumps(evidence) if evidence else None, int(time.time() * 1000)]
+    )
+    return result["last_insert_rowid"]
+
+async def update_user_fingerprint(user_id: str, guild_id: int, ip: str = None, hwid: str = None,
+                                   fingerprint: str = None, behavioral_data: dict = None) -> None:
+    existing = await db.fetchone("SELECT * FROM user_fingerprints WHERE user_id = ?", [user_id])
+    if existing:
+        # Actualizar
+        updates = []
+        args = []
+        if ip:
+            updates.append("ip_history = ?")
+            args.append(ip)
+        if hwid:
+            updates.append("hwids = ?")
+            args.append(hwid)
+        if fingerprint:
+            updates.append("browser_fingerprints = ?")
+            args.append(fingerprint)
+        if behavioral_data:
+            updates.append("behavioral_data = ?")
+            args.append(json.dumps(behavioral_data))
+        updates.append("last_updated = ?")
+        args.append(int(time.time() * 1000))
+        args.append(user_id)
+        await db.execute(f"UPDATE user_fingerprints SET {', '.join(updates)} WHERE user_id = ?", args)
+    else:
+        await db.execute(
+            """INSERT INTO user_fingerprints (user_id, guild_id, ip_history, hwids, browser_fingerprints, 
+               behavioral_data, last_updated, ml_score, risk_level)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 0.0, 'low')""",
+            [user_id, guild_id, ip or "", hwid or "", fingerprint or "", 
+             json.dumps(behavioral_data) if behavioral_data else "{}", int(time.time() * 1000)]
+        )
+
+async def get_ip_reputation(ip: str) -> Optional[dict]:
+    return await db.fetchone("SELECT * FROM ip_reputation WHERE ip = ?", [ip])
+
+async def update_ip_reputation(ip: str, guild_id: int, **kwargs) -> None:
+    existing = await db.fetchone("SELECT * FROM ip_reputation WHERE ip = ?", [ip])
+    if existing:
+        if not kwargs:
+            return
+        set_clause = ", ".join([f"{k} = ?" for k in kwargs.keys()])
+        values = list(kwargs.values()) + [ip]
+        await db.execute(f"UPDATE ip_reputation SET {set_clause} WHERE ip = ?", values)
+    else:
+        # Insert with defaults
+        defaults = {
+            "ip": ip, "guild_id": guild_id, "reputation": 0, "alt_count": 0,
+            "vpn_proxy": 0, "tor": 0, "datacenter": 0, "country": "", "asn": "",
+            "last_seen": int(time.time() * 1000), "created_at": int(time.time() * 1000)
+        }
+        defaults.update(kwargs)
+        cols = ", ".join(defaults.keys())
+        placeholders = ", ".join(["?" for _ in defaults])
+        await db.execute(f"INSERT INTO ip_reputation ({cols}) VALUES ({placeholders})", list(defaults.values()))
+
+# ============================================================
+# ANALYTICS
+# ============================================================
+async def log_analytics_event(guild_id: int, user_id: str, event_type: str, event_data: dict) -> None:
+    await db.execute(
+        "INSERT INTO analytics_events (guild_id, user_id, event_type, event_data, timestamp) VALUES (?, ?, ?, ?, ?)",
+        [guild_id, user_id, event_type, json.dumps(event_data), int(time.time() * 1000)]
+    )
+
+async def get_analytics_summary(guild_id: int, period: str = "24h") -> dict:
+    period_map = {"1h": 3600000, "24h": 86400000, "7d": 604800000, "30d": 2592000000}
+    start_ts = int(time.time() * 1000) - period_map.get(period, 86400000)
+    
+    events = await db.fetchall(
+        "SELECT event_type, COUNT(*) as count FROM analytics_events WHERE guild_id = ? AND timestamp >= ? GROUP BY event_type",
+        [guild_id, start_ts]
+    )
+    return {e["event_type"]: e["count"] for e in events}
+
+# ============================================================
+# AUTO EVENTS
+# ============================================================
+async def create_auto_event(guild_id: int, name: str, description: str, event_type: str,
+                             schedule: str, channel_id: str, role_id: str = None,
+                             rewards: str = None, rewards_config: str = None,
+                             created_by: str = None) -> int:
+    result = await db.execute(
+        """INSERT INTO auto_events (guild_id, name, description, event_type, schedule, channel_id, 
+           role_id, rewards, rewards_config, active, created_at, created_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)""",
+        [guild_id, name, description, event_type, schedule, channel_id, role_id, 
+         rewards, rewards_config, int(time.time() * 1000), created_by]
+    )
+    return result["last_insert_rowid"]
+
+async def get_auto_events(guild_id: int) -> List[dict]:
+    return await db.fetchall("SELECT * FROM auto_events WHERE guild_id = ? AND active = 1", [guild_id])
+
+async def update_auto_event(event_id: int, **kwargs) -> None:
+    if not kwargs:
+        return
+    set_clause = ", ".join([f"{k} = ?" for k in kwargs.keys()])
+    values = list(kwargs.values()) + [event_id]
+    await db.execute(f"UPDATE auto_events SET {set_clause} WHERE id = ?", values)
+
+async def add_event_participant(event_id: int, user_id: str) -> None:
+    await db.execute(
+        "INSERT OR IGNORE INTO event_participants (event_id, user_id, score, rank, rewards_claimed, joined_at) VALUES (?, ?, 0, 0, 0, ?)",
+        [event_id, user_id, int(time.time() * 1000)]
+    )
+
+async def get_event_participants(event_id: int) -> List[dict]:
+    return await db.fetchall("SELECT * FROM event_participants WHERE event_id = ? ORDER BY score DESC", [event_id])
+
+async def update_participant_score(event_id: int, user_id: str, score: int) -> None:
+    await db.execute(
+        "UPDATE event_participants SET score = ? WHERE event_id = ? AND user_id = ?",
+        [score, event_id, user_id]
+    )
+
+# ============================================================
+# WEB VERIFICATION
+# ============================================================
+async def log_web_verification(user_id: str, guild_id: int, turnstile_token: str, cf_ray: str,
+                                ip: str, country: str, challenge_ts: int, success: bool, verified_role_given: bool) -> int:
+    result = await db.execute(
+        """INSERT INTO web_verifications (user_id, guild_id, turnstile_token, cf_ray, ip, country, 
+           challenge_ts, success, verified_role_given, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        [user_id, guild_id, turnstile_token, cf_ray, ip, country, challenge_ts, success, verified_role_given, int(time.time() * 1000)]
+    )
+    return result["last_insert_rowid"]
+
+# ============================================================
+# DB HELPER
+# ============================================================
+async def get_db() -> TursoDB:
+    return db
+
 # ... (continuar con el resto de funciones - por espacio solo muestro las críticas)
 
 # Export
 __all__ = [
     "db", "init_db", "get_setting", "set_setting", "log_event", "log_to_channel",
-    "get_config_value", "CHANNELS", "ROLES", "GUILDS", "APPLY_MESSAGES",
-    "VERIFIED_ROLE_ID", "get_setting", "set_setting", "log_event", "log_to_channel",
+    "get_config_value", "set_config_value", "CHANNELS", "ROLES", "GUILDS", "APPLY_MESSAGES",
+    "VERIFIED_ROLE_ID", "UNVERIFIED_ROLE_ID",
     "get_invite_stats", "upsert_invite", "get_invite_member", "upsert_invite_member",
     "get_suggestion", "create_suggestion", "update_suggestion", "get_user_vote",
     "set_user_vote", "get_vote_count", "apply_vote",
     "get_member_application", "get_pending_application", "create_member_application",
+    "get_staff_application", "get_pending_staff_application", "create_staff_application", "update_staff_application",
+    "get_apply_message_id", "set_apply_message_id",
+    "get_staff_application_message_id", "set_staff_application_message_id",
+    "is_blacklisted", "add_to_blacklist", "remove_from_blacklist", "get_blacklist",
+    "get_rejection_info", "upsert_rejection_info", "calculate_next_allowed",
+    "create_giveaway", "get_giveaway", "get_all_entries", "update_giveaway",
+    "add_giveaway_entry", "has_user_entered", "get_entry_count",
+    "get_allowed_roles_for_giveaways", "set_allowed_roles_for_giveaways",
     "remove_giveaway_entry",
-    # ... resto de exports
+    "create_announcement", "get_announcement", "update_announcement", "delete_announcement",
+    "get_announcements", "get_scheduled_announcements",
+    "get_allowed_roles_for_announcements", "set_allowed_roles_for_announcements",
+    "create_ticket", "get_ticket", "get_ticket_by_channel", "update_ticket",
+    "get_user_tickets", "get_open_tickets", "add_ticket_message", "get_ticket_messages",
+    "create_staff_trial", "get_active_staff_trials", "remove_staff_trial",
+    "log_alt_detection", "update_user_fingerprint", "get_ip_reputation", "update_ip_reputation",
+    "log_analytics_event", "get_analytics_summary",
+    "create_auto_event", "get_auto_events", "update_auto_event",
+    "add_event_participant", "get_event_participants", "update_participant_score",
+    "log_web_verification",
+    "get_db",
 ]

@@ -7,6 +7,7 @@ import time
 from typing import Optional, Dict
 from src.database import db, get_setting, log_event
 from src.config.ids import CHANNELS, ROLES, VERIFIED_ROLE_ID, TURNSTILE_SITEKEY
+from src.utils.logger import logger
 
 class WebVerificationSystem:
     def __init__(self):
@@ -95,6 +96,9 @@ class WebVerificationSystem:
                         )
                         
                         return {"success": True, "role_given": True}
+                    except Exception as e:
+                        logger.error(f"Error asignando rol verificado: {e}")
+                        return {"success": True, "role_given": False, "error": "Error asignando rol"}
         
         return {"success": True, "role_given": False}
     

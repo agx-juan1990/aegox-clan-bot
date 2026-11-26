@@ -10,11 +10,10 @@ from src.commands.giveaway_commands import process_expired_giveaways, process_ca
 async def ensure_member_apply_message(bot, guild):
     """Verifica y envía mensaje de postulación de miembro"""
     try:
-        channel_id = await bot.get_channel(CHANNELS["member_apply"])
-        if not channel_id:
+        channel = bot.get_channel(CHANNELS["member_apply"])
+        if not channel:
             return
-        channel = guild.get_channel(channel_id)
-        if not channel or not isinstance(channel, discord.TextChannel):
+        if not isinstance(channel, discord.TextChannel):
             return
         
         # Verificar si ya existe el mensaje
@@ -116,10 +115,9 @@ async def ensure_staff_apply_message(bot, guild):
             emoji="⚔️"
         ))
         
-        channel_id = CHANNELS["staff_apply"]
-        channel = guild.get_channel(channel_id)
+        channel = guild.get_channel(CHANNELS["staff_apply"])
         if channel:
-            message = await channel.send(embed=embed, view=discord.ui.View())
+            message = await channel.send(embed=embed, view=view)
             logger.info(f"Mensaje de postulación staff enviado en {channel.id}")
     except Exception as e:
         logger.error(f"Error en ensure_staff_apply_message: {e}")
