@@ -49,8 +49,8 @@ class AnalyticsCollector:
                 
                 # Actualizar agregados diarios/horarios
                 await self._update_aggregates(events)
-            
-            self.buffers.clear()
+            finally:
+                self.buffers.clear()
     
     async def _update_aggregates(self, events: List[dict]):
         now = int(time.time() * 1000)
