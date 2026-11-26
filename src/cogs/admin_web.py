@@ -3,6 +3,7 @@ Cog: Dashboard Web + Analytics
 """
 import discord
 from discord import app_commands
+from discord.ui import Modal, TextInput
 from src.config import config
 from src.database import get_db, get_setting
 from src.utils.logger import logger
