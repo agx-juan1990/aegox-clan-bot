@@ -9,7 +9,8 @@ from src.events.members import on_guild_member_add, on_guild_member_remove
 from src.events.interactions import on_interaction
 from src.events.invites import on_invite_create, on_invite_delete, on_invite_update
 from src.utils.logger import logger
-from src.events.auto_events import auto_events_system
+from src.utils.events_auto import AutoEventsSystem
+auto_events_system = AutoEventsSystem()
 from src.events.verification_webhook import setup_webhooks
 from src.commands.verification import ensure_member_apply_message, ensure_staff_apply_message
 from src.commands.giveaway_commands import process_expired_giveaways, process_cancelled_giveaways
