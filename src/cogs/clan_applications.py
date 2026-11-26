@@ -130,7 +130,7 @@ class ClanApplicationsCog(commands.Cog):
                 "Apretá el botón de abajo y completá tu postulación por DM. El staff la revisa en 24-48hs.\n\n"
                 "AEGOX | GolemMC • FUERZA. HONOR. VICTORIA."
             )
-            .set_footer(text="AEGOX CLAN")
+        ).set_footer(text="AEGOX CLAN")
         
         view = discord.ui.View()
         view.add_item(discord.ui.Button(

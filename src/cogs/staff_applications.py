@@ -162,7 +162,7 @@ class StaffApplicationsCog(commands.Cog):
                 "Apretá el botón de abajo y completá tu postulación por DM. Solo el staff superior la puede ver.\n\n"
                 "AEGOX | GolemMC • Solo para miembros de AEGOX"
             )
-            .set_footer(text="AEGOX CLAN")
+        ).set_footer(text="AEGOX CLAN")
         
         view = discord.ui.View()
         view.add_item(discord.ui.Button(

@@ -171,7 +171,7 @@ async def ensure_member_apply_message(bot, guild):
                 "Apretá el botón de abajo y completá tu postulación por DM. El staff la revisa en 24-48hs.\n\n"
                 "AEGOX | GolemMC • FUERZA. HONOR. VICTORIA."
             )
-            .set_footer(text="AEGOX CLAN")
+        ).set_footer(text="AEGOX CLAN")
         
         view = discord.ui.View()
         view.add_item(discord.ui.Button(
@@ -229,7 +229,7 @@ async def ensure_staff_apply_message(bot, guild):
                 "Apretá el botón de abajo y completá tu postulación por DM. Solo el staff superior la puede ver.\n\n"
                 "AEGOX | GolemMC • Solo para miembros de AEGOX"
             )
-            .set_footer(text="AEGOX CLAN")
+        ).set_footer(text="AEGOX CLAN")
         
         view = discord.ui.View()
         view.add_item(discord.ui.Button(

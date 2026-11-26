@@ -5,11 +5,13 @@ API REST + WebSocket para dashboard en tiempo real
 import os
 import jwt
 import time
+import json
 from datetime import datetime, timedelta
 from typing import Optional, List
-from fastapi import FastAPI, HTTPException, Depends, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Depends, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from starlette.responses import FileResponse
 from starlette.staticfiles import StaticFiles
@@ -17,8 +19,10 @@ from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from starlette.responses import Response
 
 from src.config import config
+from src.config.ids import TURNSTILE_SITEKEY
 from src.database import db, get_setting, get_db
 from src.utils.analytics import analytics_collector, metrics_endpoint
+from src.utils.web_verification import web_verification_system
 from src.utils.logger import logger
 
 app = FastAPI(title="AEGOX Dashboard API", version="1.0.0")
@@ -360,6 +364,53 @@ async def get_events(guild_id: int, event_type: str = None, limit: int = 100, cu
 @app.get("/metrics")
 async def metrics():
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+# ============================================================
+# VERIFICACIÓN WEB (Cloudflare Turnstile)
+# ============================================================
+from src.config.ids import TURNSTILE_SITEKEY
+
+@app.get("/verify")
+async def verification_page(guild: int, user: str):
+    """Página de verificación con widget Turnstile"""
+    from src.utils.web_verification import get_verification_html
+    from src.config.ids import TURNSTILE_SITEKEY
+    html = get_verification_html(TURNSTILE_SITEKEY)
+    return HTMLResponse(content=html)
+
+@app.post("/api/verify")
+async def verify_token(request: Request):
+    """Verifica token de Turnstile y asigna rol"""
+    try:
+        data = await request.json()
+        token = data.get("token")
+        guild_id = int(data.get("guild_id", 0))
+        user_id = data.get("user_id", "")
+        user_ip = data.get("ip", "")
+        
+        if not token or not guild_id or not user_id:
+            return {"success": False, "error": "Datos incompletos"}
+        
+        from src.utils.web_verification import web_verification_system
+        await web_verification_system.initialize(int(guild_id))
+        result = await web_verification_system.process_verification(
+            guild_id, user_id, token, user_ip
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error en verificación: {e}")
+        return {"success": False, "error": "Error interno"}
+
+# ============================================================
+# WEBHOOK PARA CLOUDFLARE TURNSTILE CALLBACK
+# ============================================================
+from aiohttp import web as aiohttp_web
+from src.utils.web_verification import web_verification_system
+from src.utils.logger import logger
+
+# Agregar ruta para webhook de Cloudflare (si se usa)
+# Nota: FastAPI no maneja webhooks de aiohttp directamente
+# Se recomienda usar un servidor separado o ngrok para desarrollo
 
 # ============================================================
 # HEALTH CHECK

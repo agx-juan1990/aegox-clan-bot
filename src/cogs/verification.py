@@ -7,6 +7,7 @@ from src.config import config
 from src.database import get_setting, get_db
 from src.utils.web_verification import web_verification_system
 from src.utils.logger import logger
+from src.config.ids import TURNSTILE_SITEKEY
 
 class VerificationCog(commands.Cog):
     def __init__(self, bot):
@@ -65,10 +66,10 @@ class VerificationSetupModal(Modal, title="Configurar Verificación Web"):
         if verified_role and verified_role in interaction.user.roles:
             return await interaction.response.send_message("✅ Ya estás verificado.", ephemeral=True)
         
-        from src.database import get_setting
-        sitekey = await get_setting(guild_id, "TURNSTILE_SITEKEY")
+        # Usar el sitekey del config/ids.py (fijo)
+        sitekey = TURNSTILE_SITEKEY
         if not sitekey:
-            return await interaction.response.send_message("❌ Verificación no configurada.", ephemeral=True)
+            return await interaction.response.send_message("❌ Verificación no configurada (sitekey faltante).", ephemeral=True)
         
         embed = discord.Embed(
             title="🔐 Verificación Web AEGOX",
@@ -91,7 +92,7 @@ class VerificationSetupModal(Modal, title="Configurar Verificación Web"):
             label="🔐 Verificar Ahora",
             style=discord.ButtonStyle.success,
             custom_id="verify_start",
-            url=f"https://verificacion.aegox.clan?guild={interaction.guild_id}&user={interaction.user.id}"
+            url=f"https://dashboard.aegox.clan/verify?guild={interaction.guild_id}&user={interaction.user.id}"
         ))
         
         await interaction.response.send_message(embed=embed, view=View(), ephemeral=True)

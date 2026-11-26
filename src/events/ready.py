@@ -353,8 +353,7 @@ async def on_guild_member_add(member):
             "Recuerda leer las reglas para evitar inconvenientes.\n"
             "Activa las alertas para estar al día de todo!"
         )
-        .set_thumbnail(member.display_avatar.url)
-        .set_footer(text=f"Bienvenido el {datetime.now().strftime('%d/%m/%Y')}")
+    ).set_thumbnail(member.display_avatar.url).set_footer(text=f"Bienvenido el {datetime.now().strftime('%d/%m/%Y')}")
     
     welcome_channel = member.guild.get_channel(CHANNELS["welcome"])
     if welcome_channel:
