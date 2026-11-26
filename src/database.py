@@ -816,14 +816,14 @@ async def get_member_application(id: int) -> Optional[dict]:
     result = await db.execute("SELECT * FROM member_applications WHERE id = ?", [id])
     return result["rows"][0] if result["rows"] else None
 
-async function get_pending_application(user_id: str, guild_id: int) -> Optional[dict]:
+async def get_pending_application(user_id: str, guild_id: int) -> Optional[dict]:
     result = await db.execute(
         "SELECT * FROM member_applications WHERE user_id = ? AND guild_id = ? AND status = 'pendiente'",
         [user_id, guild_id]
     )
     return result["rows"][0] if result["rows"] else None
 
-async function create_member_application(user_id: str, guild_id: int, mc_nick: str, 
+async def create_member_application(user_id: str, guild_id: int, mc_nick: str, 
                                         edad: int, pais: str, tiempo_jugando: str, rol_elegido: str) -> int:
     result = await db.execute(
         """INSERT INTO member_applications (user_id, guild_id, mc_nick, edad, pais, tiempo_jugando, rol_elegido, status, created_at)
