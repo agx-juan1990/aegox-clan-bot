@@ -832,6 +832,16 @@ async def create_member_application(user_id: str, guild_id: int, mc_nick: str,
     )
     return result["last_insert_rowid"]
 
+# ============================================================
+# GIVEAWAYS
+# ============================================================
+async def remove_giveaway_entry(giveaway_id: int, user_id: str, guild_id: int) -> None:
+    """Elimina entrada de sorteo cuando usuario sale del servidor"""
+    await db.execute(
+        "DELETE FROM giveaway_entries WHERE giveaway_id = ? AND user_id = ? AND guild_id = ?",
+        [giveaway_id, user_id, guild_id]
+    )
+
 # ... (continuar con el resto de funciones - por espacio solo muestro las críticas)
 
 # Export
@@ -843,5 +853,6 @@ __all__ = [
     "get_suggestion", "create_suggestion", "update_suggestion", "get_user_vote",
     "set_user_vote", "get_vote_count", "apply_vote",
     "get_member_application", "get_pending_application", "create_member_application",
+    "remove_giveaway_entry",
     # ... resto de exports
 ]
